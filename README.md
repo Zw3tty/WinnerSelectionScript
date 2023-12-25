@@ -5,7 +5,7 @@ The Giveaway Winner Picker is a Tampermonkey script designed to automate and sim
 
 ## Installation
 1. **Install Tampermonkey**: Ensure you have the Tampermonkey extension installed in your browser. If not, you can download it from [here](https://www.tampermonkey.net/).
-2. **Add the Script**: Visit the [Giveaway Winner Picker script page](YOUR_SCRIPT_LINK) and click on the "Install" button. The script will be automatically added to your Tampermonkey dashboard.
+2. **Add the Script**: Visit the [Giveaway Winner Picker script page](https://openuserjs.org/scripts/NotZw3tty/Winner_Selection_Script) and click on the "Install" button. The script will be automatically added to your Tampermonkey dashboard.
 3. **Enable the Script**: Make sure the script is enabled in Tampermonkey.
 
 ## Usage
@@ -24,10 +24,10 @@ To use the Giveaway Winner Picker:
 - **Easy to Use**: User-friendly interface integrated within the forum thread.
 
 ## Contribution
-Contributions to the Giveaway Winner Picker script are welcome. If you have suggestions for improvements or have found a bug, please feel free to [open an issue](LINK_TO_YOUR_GITHUB_REPO_ISSUES) or [submit a pull request](LINK_TO_YOUR_GITHUB_REPO_PULL_REQUESTS).
+Contributions to the Giveaway Winner Picker script are welcome. If you have suggestions for improvements or have found a bug, please feel free to [open an issue](https://github.com/Zw3tty/WinnerSelectionScript/issues) or [submit a pull request](https://github.com/Zw3tty/WinnerSelectionScript/pulls).
 
 ## License
-[MIT License](LINK_TO_YOUR_LICENSE_FILE)
+[MIT License](https://github.com/Zw3tty/WinnerSelectionScript/blob/main/LICENSE)
 
 ## Support
-For support, feature requests, or any questions about using the script, please [open an issue](LINK_TO_YOUR_GITHUB_REPO_ISSUES) in this repository.
+For support, feature requests, or any questions about using the script, please [open an issue](https://github.com/Zw3tty/WinnerSelectionScript/issues) in this repository.
