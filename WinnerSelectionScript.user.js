@@ -2,7 +2,7 @@
 // @name         Winner Selection Script
 // @description  Automates the process of picking winners from the first post's like list in forum giveaways. Ensures a fair and transparent winner selection.
 // @namespace    https://github.com/Zw3tty/WinnerSelectionScript
-// @version      1.7
+// @version      1.7.1
 // @author       NotZw3tty
 // @match        https://gamesense.pub/forums/viewtopic.php?id=*
 // @grant        none
@@ -102,8 +102,6 @@
         return winnersText;
     }
 
-    const allowedUserIds = new Set(['2', '415', '985', '14668']); // UIDs with force permissions
-
     function getUserIdFromHref(href)  {
         const match = href.match(/id=(\d+)/);
         return match ? match[1] : null;
@@ -113,7 +111,7 @@
         const loggedInUserId = getUserIdFromHref(document.querySelector('#navprofile a').href);
         const postAuthorId = getUserIdFromHref(document.querySelector('.postleft dt a').href);
         
-        if (loggedInUserId === postAuthorId || allowedUserIds.has(loggedInUserId)) {
+        if (loggedInUserId === postAuthorId) {
             const firstPostFootRight = document.querySelector('.postfootright > ul');
             if (firstPostFootRight) {
                 const pickWinnersLi = document.createElement('li');
