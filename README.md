@@ -1,33 +1,35 @@
 # Giveaway Winner Picker
 
 ## Overview
-The Giveaway Winner Picker is a Tampermonkey script designed to automate and simplify the process of picking winners in forum-based giveaways. It ensures a fair and transparent selection of winners from users who have participated in a giveaway by liking a specific post.
+The Giveaway Winner Picker is a Tampermonkey script that automates the selection process for forum giveaway events. With fairness and transparency at its core, it randomly selects winners from users who have engaged with the giveaway post.
 
 ## Installation
-1. **Install Tampermonkey**: Ensure you have the Tampermonkey extension installed in your browser. If not, you can download it from [here](https://www.tampermonkey.net/).
-2. **Add the Script**: Visit the [Giveaway Winner Picker script page](https://openuserjs.org/scripts/NotZw3tty/Winner_Selection_Script) and click on the "Install" button. The script will be automatically added to your Tampermonkey dashboard.
-3. **Enable the Script**: Make sure the script is enabled in Tampermonkey.
+1. Install the Tampermonkey extension for your browser from [Tampermonkey's website](https://www.tampermonkey.net/).
+2. Add the script to Tampermonkey by visiting the [Giveaway Winner Picker script page](https://openuserjs.org/scripts/NotZw3tty/Winner_Selection_Script) and clicking "Install".
+3. Enable the script in the Tampermonkey dashboard to activate it for use.
 
 ## Usage
-To use the Giveaway Winner Picker:
-1. Navigate to the forum thread where the giveaway is hosted.
-2. Click the "Pick Winners" button which should appear alongside the usual "Report | Quote | Like" options in the first post of the thread.
-3. Enter the number of winners you wish to pick when prompted.
-4. Choose the desired format for displaying the winners.
-5. The script will then randomly select the winners and display them.
+1. Go to the forum thread of the giveaway.
+2. Click the "Pick Winners" button, found next to the standard thread interaction buttons.
+3. Input the desired number of winners.
+4. Select the format for the winners' display.
+5. The script will then randomly select winners and present them in the chosen format.
 
 ## Features
-- **Fair and Random Selection**: Picks winners randomly from the list of participants.
-- **Multiple Output Formats**: Offers various formats for displaying the winners' names and IDs.
-- **Copy Winners Feature**: Allows for easy copying of the winners' list for sharing.
-- **Exclusion of Banned Users**: Automatically excludes banned users from the selection pool.
-- **Easy to Use**: User-friendly interface integrated within the forum thread.
+- **Randomized Winner Selection**: Uses a cryptographic algorithm to ensure each participant has an equal chance of winning.
+- **Flexible Output Formats**: Multiple formats available for winner announcement, including the option to list winners on new lines.
+- **Direct Copy Functionality**: Simplifies sharing the winners' list with a "Copy Winners" button.
+- **Exclusion of Ineligible Users**: Automatically filters out banned or ineligible users from the draw.
+- **Seamless User Experience**: Integrated within the forum for ease of use and accessibility.
+
+## Release Notes
+For detailed information on each version's changes, please refer to the [release notes](https://github.com/Zw3tty/WinnerSelectionScript/releases).
 
 ## Contribution
-Contributions to the Giveaway Winner Picker script are welcome. If you have suggestions for improvements or have found a bug, please feel free to [open an issue](https://github.com/Zw3tty/WinnerSelectionScript/issues) or [submit a pull request](https://github.com/Zw3tty/WinnerSelectionScript/pulls).
+We welcome contributions such as feature enhancements, bug fixes, or performance improvements. To contribute, please [open an issue](https://github.com/Zw3tty/WinnerSelectionScript/issues) or [submit a pull request](https://github.com/Zw3tty/WinnerSelectionScript/pulls) on GitHub.
 
 ## License
-[MIT License](https://github.com/Zw3tty/WinnerSelectionScript/blob/main/LICENSE)
+This script is distributed under the [MIT License](https://github.com/Zw3tty/WinnerSelectionScript/blob/main/LICENSE).
 
 ## Support
-For support, feature requests, or any questions about using the script, please [open an issue](https://github.com/Zw3tty/WinnerSelectionScript/issues) in this repository.
+Need help or have suggestions? Please [create an issue](https://github.com/Zw3tty/WinnerSelectionScript/issues) for support, feature requests, or queries about the script.
