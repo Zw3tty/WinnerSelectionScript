@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Winner Selection Script v.1.8 Beta
-// @description  Automates the process of picking winners from the first post's like list in forum giveaways. Ensures a fair and transparent winner selection.
+// @name         Testing Winner Selection Script v.1.8.1 Beta
+// @description  Automates the process of picking winners from the first post's like list in forum giveaways.
 // @namespace    https://github.com/Zw3tty/WinnerSelectionScript
-// @version      1.8 Beta
+// @version      1.8.1 Beta
 // @author       NotZw3tty
 // @match        https://gamesense.pub/forums/viewtopic.php?id=*
 // @match        https://gamesense.pub/forums/pmsnew.php?mdl=post
@@ -16,65 +16,107 @@
 (function() {
     'use strict';
 
-    // Configuration variable: Set to 1 to force add buttons, 0 to follow normal conditions
-    const forceUIDAddButtons = 0;
+    // Global cache for frequently accessed DOM elements
+    let cachedCsrfToken, cachedSubject, cachedMessage;
 
-    // Function to send messages to all winners
-    async function sendMessagesToWinners(usernames) {
-        const csrfToken = document.querySelector('input[name="csrf_hash"]').value;
-        const subject = document.querySelector('input[name="req_subject"]').value; // Get the subject from the form
-        const message = document.querySelector('textarea[name="req_message"]').value; // Get the message from the form
-        let successCount = 0;
-        let failCount = 0;
+    const CONFIG = {
+        forceUIDAddButtons: 1,
+        messagingDelay: 30000,
+        messagingURL: 'https://gamesense.pub/forums/pmsnew.php?mdl=post',
+    };
 
-        for (const username of usernames) {
-            try {
-                const isSuccess = await sendMessageToWinner(username, subject, message, csrfToken);
-                if (isSuccess) {
-                    successCount++;
-                } else {
-                    failCount++;
-                }
-                // Wait for a certain amount of time before sending the next message
-                await new Promise(resolve => setTimeout(resolve, 30000)); // 30 seconds delay
-            } catch (error) {
-                console.error(`Error sending message to ${username}:`, error);
-                failCount++;
-            }
-        }
-
-        alert(`${successCount}/${usernames.length} messages sent successfully. ${failCount} failed.`);
+    // Helper Function for Logging Errors
+    function logError(context, error) {
+        console.error(`Error in ${context}:`, error);
+        alert(`An error occurred in ${context}. Check the console for more details.`);
     }
 
-    // Function to send a message to a winner
-    function sendMessageToWinner(winnerUsername, subject, message, csrfToken) {
-        return new Promise((resolve, reject) => {
-            const url = 'https://gamesense.pub/forums/pmsnew.php?mdl=post';
-            const params = new URLSearchParams();
-            params.append('csrf_hash', csrfToken);
-            params.append('req_addressee', winnerUsername);
-            params.append('req_subject', subject); // Use the custom subject
-            params.append('req_message', message); // Use the custom message
-            params.append('submit', 'Submit');
+    // sendMessagesToWinners: Sends automated messages to a list of winners.
+    // This function iterates over each username, sending a message, and handles potential errors with retries.
+    async function sendMessagesToWinners(usernames) {
+        try {
+            // Fetch and cache these elements if not already done
+            if (!cachedCsrfToken || !cachedSubject || !cachedMessage) {
+                cachedCsrfToken = document.querySelector('input[name="csrf_hash"]').value;
+                cachedSubject = document.querySelector('input[name="req_subject"]').value;
+                cachedMessage = document.querySelector('textarea[name="req_message"]').value;
+            }
+            let successCount = 0;
+            let failCount = 0;
+    
+            // UI feedback elements
+            const progressDiv = document.createElement('div');
+            document.body.appendChild(progressDiv); // Append wherever appropriate
+    
+            for (const username of usernames) {
+                let attempts = 0;
+                let isSuccess = false;
+    
+                while (!isSuccess && attempts < 3) { // Retry up to 3 times
+                    try {
+                        isSuccess = await sendMessageToWinner(username, subject, message, csrfToken);
+                        if (isSuccess) {
+                            successCount++;
+                        } else {
+                            attempts++;
+                            await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds before retrying
+                        }
+                    } catch (error) {
+                        console.error(`Error sending message to ${username}:`, error);
+                        attempts++;
+                        await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds before retrying
+                    }
+                }
+    
+                if (!isSuccess) failCount++;
+    
+                // Update UI with progress
+                progressDiv.textContent = `Sending messages... (${successCount + failCount}/${usernames.length})`;
+    
+                await new Promise(resolve => setTimeout(resolve, CONFIG.messagingDelay));
+            }
+    
+            alert(`${successCount}/${usernames.length} messages sent successfully. ${failCount} failed.`);
+            document.body.removeChild(progressDiv); // Remove the progress element
+        } catch (error) {
+            logError('sendMessagesToWinners', error);
+        }
+    }
 
-            fetch(url, {
+    // sendMessageToWinner: Sends a message to an individual winner.
+    // It takes the winner's username, subject, message, and csrfToken, and performs a POST request.
+    async function sendMessageToWinner(winnerUsername, subject, message, csrfToken) {
+        try {
+            const params = new URLSearchParams({
+                'csrf_hash': csrfToken,
+                'req_addressee': winnerUsername,
+                'req_subject': subject,
+                'req_message': message,
+                'submit': 'Submit'
+            });
+
+            const response = await fetchWithTimeout(CONFIG.messagingURL, {
                 method: 'POST',
                 body: params,
                 credentials: 'include',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 }
-            })
-            .then(response => response.ok ? resolve(true) : resolve(false))
-            .catch(() => resolve(false));
-        });
+            });
+
+            return response.ok;
+        } catch (error) {
+            logError('sendMessageToWinner', error);
+            return false;
+        }
     }
 
-    // Function to extract user data from the like list
+    // getUserData: Extracts user data from the like list.
+    // This function parses the list of users who liked a post and retrieves their usernames and IDs.
     function getUserData(likelistId) {
         try {
             const users = [];
-            document.querySelectorAll(`#${likelistId} li a`).forEach((element) => {
+            document.querySelectorAll(`#${likelistId} li a`).forEach(element => {
                 const username = element.textContent.trim();
                 const uid = getUserIdFromHref(element.href);
                 if (uid && !element.classList.contains('usergroup-6')) {
@@ -83,16 +125,17 @@
             });
             return users;
         } catch (error) {
-            console.error('Error in getUserData:', error);
+            logError('getUserData', error);
             return [];
         }
     }
 
-    // Function to select random winners from user data using crypto API for better randomness
+    // pickWinners: Randomly selects a specified number of winners from a list of users.
+    // Utilizes the cryptographic API for better randomness in selection.
     function pickWinners(userData, numberOfWinners) {
         try {
             if (numberOfWinners < 1 || numberOfWinners > userData.length) {
-                alert("Invalid number of winners. Please choose a number between 1 and " + userData.length);
+                alert(`Invalid number of winners. Please choose a number between 1 and ${userData.length}`);
                 return [];
             }
 
@@ -103,100 +146,99 @@
                 winners.push(userData.splice(randomIndex, 1)[0]);
             }
 
-            return winners.length ? winners : null;
+            return winners;
         } catch (error) {
-            console.error('Error in pickWinners:', error);
+            logError('pickWinners', error);
             return [];
         }
     }
-    
-    // Function to generate formatted output for winners
+
+    // generateWinnersOutput: Generates a formatted string of winners based on user-selected format.
+    // Offers multiple formatting options for displaying the list of winners.
     function generateWinnersOutput(winners) {
-        const formatChoice = prompt(
-            "Choose the output format:\n" +
-            "1: @Username (ID: XXXXX)\n" +
-            "2: Username (ID: XXXXX)\n" +
-            "3: @Username\n" +
-            "4: Username\n" +
-            "5: @Username (ID: XXXXX), each on new line\n" +
-            "6: Username (ID: XXXXX), each on new line\n" +
-            "7: @Username, each on new line\n" +
-            "8: Username, each on new line\n" +
-            "Enter a number from 1 to 8:"
-        );
+        try {
+            // Separating the mapping for readability
+            const formatFunctions = {
+                '1': user => `@${user.username} (ID: ${user.uid})`,
+                '2': user => `${user.username} (ID: ${user.uid})`,
+                '3': user => `@${user.username}`,
+                '4': user => `${user.username}`,
+                '5': user => `@${user.username} (ID: ${user.uid})\n`,
+                '6': user => `${user.username} (ID: ${user.uid})\n`,
+                '7': user => `@${user.username}\n`,
+                '8': user => `${user.username}\n`,
+            };
     
-        let formatFunction;
-        switch (formatChoice) {
-            case '1':
-                formatFunction = user => `@${user.username} (ID: ${user.uid})`;
-                break;
-            case '2':
-                formatFunction = user => `${user.username} (ID: ${user.uid})`;
-                break;
-            case '3':
-                formatFunction = user => `@${user.username}`;
-                break;
-            case '4':
-                formatFunction = user => `${user.username}`;
-                break;
-            case '5':
-                formatFunction = user => `@${user.username} (ID: ${user.uid})`;
-                break;
-            case '6':
-                formatFunction = user => `${user.username} (ID: ${user.uid})`;
-                break;
-            case '7':
-                formatFunction = user => `@${user.username}`;
-                break;
-            case '8':
-                formatFunction = user => `${user.username}`;
-                break;
-            default:
-                formatFunction = user => `@${user.username} (ID: ${user.uid})`;
+            let formatChoice;
+            do {
+                formatChoice = prompt(
+                    "Choose the output format:\n" +
+                    "1: @Username (ID: XXXXX)\n" +
+                    "2: Username (ID: XXXXX)\n" +
+                    "3: @Username\n" +
+                    "4: Username\n" +
+                    "5: @Username (ID: XXXXX), each on new line\n" +
+                    "6: Username (ID: XXXXX), each on new line\n" +
+                    "7: @Username, each on new line\n" +
+                    "8: Username, each on new line\n" +
+                    "Enter a number from 1 to 8:"
+                );
+                // Validate the input
+            } while (formatChoice && !(formatChoice in formatFunctions));
+    
+            // Default to format '1' if input is invalid or cancelled
+            const formatFunction = formatFunctions[formatChoice || '1'];
+    
+            return "Winners:\n" + winners.map(formatFunction).join(formatChoice >= '5' ? '' : ', ');
+        } catch (error) {
+            logError('generateWinnersOutput', error);
+            return '';
         }
-    
-        let winnersText = "Winners:";
-        if (['5', '6', '7', '8'].includes(formatChoice)) {
-            winnersText += "\n" + winners.map(formatFunction).join('\n');
-        } else {
-            winnersText += " " + winners.map(formatFunction).join(', ');
-        }
-    
-        return winnersText;
     }
 
-    // Function to extract user ID from href attribute
+    // getUserIdFromHref: Extracts the user ID from a given href string.
+    // Parses the href attribute of an anchor tag to find the user ID.
     function getUserIdFromHref(href) {
         try {
+            if (!href) {
+                throw new Error("href is null or undefined.");
+            }
+    
             const match = href.match(/id=(\d+)/);
             return match ? match[1] : null;
         } catch (error) {
-            console.error('Error in getUserIdFromHref:', error);
+            logError('getUserIdFromHref', error);
             return null;
         }
     }
 
-    // Function to add buttons to the first post's footer for winner selection and copying
+    // addButtonsToFirstPostFoot: Adds 'Pick Winners' and 'Copy Winners' buttons to the first post's footer.
+    // Only adds buttons if certain conditions are met, such as user permissions and page type.
     function addButtonsToFirstPostFoot() {
         try {
-            const loggedInUserId = getUserIdFromHref(document.querySelector('#navprofile a').href);
-            const postAuthorId = getUserIdFromHref(document.querySelector('.postleft dt a').href);
-
-            // Check if the force add feature is enabled or if the logged-in user is the post author
-            if (forceUIDAddButtons === 1 || loggedInUserId === postAuthorId) {
-                const firstPostFootRight = document.querySelector('.postfootright > ul');
-                if (!firstPostFootRight) {
-                    console.log('Post footer not found.');
-                    return;
-                }
-
-                // Create 'Pick Winners' button
+            const navProfileLink = document.querySelector('#navprofile a');
+            const postAuthorLink = document.querySelector('.postleft dt a');
+            const firstPostFootRight = document.querySelector('.postfootright > ul');
+    
+            if (!navProfileLink || !postAuthorLink || !firstPostFootRight) {
+                console.log('Required elements not found on the page for adding buttons.');
+                return;
+            }
+    
+            const loggedInUserId = getUserIdFromHref(navProfileLink.href);
+            const postAuthorId = getUserIdFromHref(postAuthorLink.href);
+    
+            if (!loggedInUserId || !postAuthorId) {
+                throw new Error("Unable to retrieve user IDs.");
+            }
+    
+            if (CONFIG.forceUIDAddButtons === 1 || loggedInUserId === postAuthorId) {
                 const pickWinnersLink = createButton('Pick Winners');
                 const pickWinnersLi = wrapInListItem(pickWinnersLink);
                 firstPostFootRight.appendChild(pickWinnersLi);
-
-                let copyWinnersLiRef = { current: null };  // Reference object for the 'Copy Winners' button
-
+    
+                let copyWinnersLiRef = { current: null };
+    
                 pickWinnersLink.addEventListener('click', function(event) {
                     event.preventDefault();
                     handlePickWinnersClick(firstPostFootRight, pickWinnersLink, copyWinnersLiRef);
@@ -205,62 +247,61 @@
                 console.log('User is not the author of the post and force add is disabled, not adding Giveaway Picker buttons.');
             }
         } catch (error) {
-            console.error('Error in addButtonsToFirstPostFoot:', error);
+            logError('addButtonsToFirstPostFoot', error);
         }
-    }
+    }    
 
-    // Function to add messaging interface
+    // addMessagingInterface: Sets up the UI for bulk messaging winners.
+    // Adds input fields and a button to the messaging page for sending messages to multiple winners.
     function addMessagingInterface() {
         try {
-            // Select the container where the textarea for the message is
             const txtAreaDiv = document.querySelector('.inform .infldset.txtarea');
-            if (!txtAreaDiv) {
-                throw new Error('The message area (infldset txtarea) was not found.');
+            const buttonsContainer = document.querySelector('.buttons');
+            const previewButton = document.querySelector('input[name="preview"]');
+    
+            if (!txtAreaDiv || !buttonsContainer || !previewButton) {
+                console.log('Required elements not found on the page for adding messaging interface.');
+                return;
             }
-
-            // Create the new label and input for bulk messaging
+    
             const bulkLabel = document.createElement('label');
             bulkLabel.className = 'required';
             bulkLabel.innerHTML = '<strong>Winners <span>(Separated by commas)</span></strong><br>';
-
+    
             const bulkInput = document.createElement('input');
             bulkInput.type = 'text';
-            bulkInput.className = 'longinput'; // Ensuring consistent styling
+            bulkInput.className = 'longinput';
             bulkInput.name = 'usernames';
             bulkInput.placeholder = 'Enter usernames separated by commas';
-
+    
             bulkLabel.appendChild(bulkInput);
-            txtAreaDiv.appendChild(bulkLabel); // Append the new label and input to the txtAreaDiv
-
-            // Find the container of the form buttons
-            const buttonsContainer = document.querySelector('.buttons');
-            if (!buttonsContainer) {
-                throw new Error('The buttons container was not found.');
-            }
-
-            // Create the 'Message Winners' button
+            txtAreaDiv.appendChild(bulkLabel);
+    
+            const subjectInput = document.querySelector('input[name="req_subject"]');
+            const messageInput = document.querySelector('textarea[name="req_message"]');
+    
             const messageWinnersButton = document.createElement('input');
             messageWinnersButton.type = 'button';
             messageWinnersButton.value = 'Message Winners';
-            messageWinnersButton.className = 'button'; // Ensure it matches site styling
-
-            // Insert the button at the end of the buttons container
-            buttonsContainer.appendChild(messageWinnersButton);
-
-            // Event listener for the 'Message Winners' button to handle messaging
-            messageWinnersButton.addEventListener('click', function() {
+    
+            previewButton.insertAdjacentElement('afterend', messageWinnersButton);
+    
+            messageWinnersButton.addEventListener('click', () => {
                 const usernames = bulkInput.value.split(',').map(u => u.trim().replace(/^@/, ''));
-                const estimatedTimeMinutes = Math.ceil(usernames.length * 30 / 60);
+                if (!usernames.length || !subjectInput.value.trim() || !messageInput.value.trim()) {
+                    alert('Please provide the following details:\n- Usernames\n- Subject\n- Message');
+                    return;
+                }
+    
+                const estimatedTimeMinutes = Math.ceil(usernames.length * CONFIG.messagingDelay / 60000);
                 alert(`This will take around ${estimatedTimeMinutes} minutes. Please do not close this window or turn off your PC.`);
                 sendMessagesToWinners(usernames);
             });
         } catch (error) {
-            console.error('Error creating bulk messaging interface:', error);
-            alert('An error occurred while creating the bulk messaging interface. Please check the console for more details.');
+            logError('addMessagingInterface', error);
         }
-    }
+    }    
 
-    // Function to create a styled button
     function createButton(text) {
         const button = document.createElement('a');
         button.textContent = text;
@@ -271,7 +312,6 @@
         return button;
     }
 
-    // Function to wrap an element in a list item
     function wrapInListItem(element) {
         const listItem = document.createElement('li');
         listItem.className = 'postpickgw';
@@ -279,28 +319,34 @@
         return listItem;
     }
 
-    // Function to handle 'Pick Winners' button click
-    function handlePickWinnersClick(container, pickWinnersLink, copyWinnersLiRef) {
-        const likelistId = document.querySelector('ul.likelist').id;
-        const numberOfWinners = prompt("Enter the number of winners: ");
-        if (!numberOfWinners) return;
+    // handlePickWinnersClick: Event handler for 'Pick Winners' button click.
+    // Manages the process of winner selection and displaying the output.
+    async function handlePickWinnersClick(container, pickWinnersLink, copyWinnersLiRef) {
+        try {
+            const likelistId = document.querySelector('ul.likelist').id;
+            const numberOfWinners = prompt("Enter the number of winners: ");
+            if (!numberOfWinners) return;
 
-        const userData = getUserData(likelistId);
-        const winners = pickWinners(userData, parseInt(numberOfWinners, 10));
-        if (winners && winners.length > 0) {
-            const winnersText = generateWinnersOutput(winners);
-            alert(winnersText);
+            const userData = getUserData(likelistId);
+            const winners = pickWinners(userData, parseInt(numberOfWinners, 10));
+            if (winners && winners.length > 0) {
+                const winnersText = generateWinnersOutput(winners);
+                alert(winnersText);
     
-            if (!copyWinnersLiRef.current) {
-                copyWinnersLiRef.current = createCopyWinnersButton(winnersText);
-                container.appendChild(copyWinnersLiRef.current);
+                if (!copyWinnersLiRef.current) {
+                    copyWinnersLiRef.current = createCopyWinnersButton(winnersText);
+                    container.appendChild(copyWinnersLiRef.current);
+                }
+            } else {
+                alert("No winners were selected.");
             }
-        } else {
-            alert("No winners were selected.");
+        } catch (error) {
+            logError('handlePickWinnersClick', error);
         }
     }
 
-    // Function to create 'Copy Winners' button
+    // createCopyWinnersButton: Creates a button for copying the list of winners to the clipboard.
+    // When clicked, it copies the formatted list of winners to the user's clipboard.
     function createCopyWinnersButton(winnersText) {
         const copyWinnersButton = createButton('Copy Winners');
         copyWinnersButton.addEventListener('click', function(e) {
@@ -308,25 +354,31 @@
             navigator.clipboard.writeText(winnersText).then(function() {
                 alert('Winners copied to clipboard!');
             }, function(err) {
-                console.error('Could not copy text: ', err);
+                logError('copyWinnersButton', err);
             });
         });
         return wrapInListItem(copyWinnersButton);
     }
 
-    // Main function to initialize the script
+    // initializeWinnerSelectionScriptWithMessaging: Main function to initialize the script.
+    // Checks the current page and initializes the appropriate functionalities.
     function initializeWinnerSelectionScriptWithMessaging() {
         try {
-            // Add existing button functionality
-            addButtonsToFirstPostFoot();
-
-            // Add new messaging button functionality
-            addMessagingInterface();
+            const url = window.location.href;
+    
+            // Check if the current page is the viewtopic page
+            if (url.includes('https://gamesense.pub/forums/viewtopic.php?id=')) {
+                addButtonsToFirstPostFoot();
+            }
+    
+            // Check if the current page is the messaging page
+            if (url.includes('https://gamesense.pub/forums/pmsnew.php?mdl=post')) {
+                addMessagingInterface();
+            }
         } catch (error) {
-            console.error('An error occurred in the Winner Selection Script:', error);
+            logError('initializeWinnerSelectionScriptWithMessaging', error);
         }
     }
-
+    
     initializeWinnerSelectionScriptWithMessaging();
-
 })();
