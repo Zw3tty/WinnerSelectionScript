@@ -5,7 +5,7 @@ The Giveaway Winner Picker is a Tampermonkey script that automates the selection
 
 ## Installation
 1. Install the Tampermonkey extension for your browser from [Tampermonkey's website](https://www.tampermonkey.net/).
-2. Add the script to Tampermonkey by visiting the [Giveaway Winner Picker script page](https://openuserjs.org/scripts/NotZw3tty/Winner_Selection_Script) and clicking "Install".
+2. Add the script to Tampermonkey by visiting the [Giveaway Winner Picker script page](https://greasyfork.org/en/scripts/483354-winner-selection-script-v-1-8-1-beta) and clicking "Install".
 3. Enable the script in the Tampermonkey dashboard to activate it for use.
 
 ## Usage
