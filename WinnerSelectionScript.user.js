@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Testing Winner Selection Script v.1.8.1 Beta
+// @name         Winner Selection Script v.1.8.1 Beta
 // @description  Automates the process of picking winners from the first post's like list in forum giveaways.
 // @namespace    https://github.com/Zw3tty/WinnerSelectionScript
 // @version      1.8.1 Beta
@@ -31,11 +31,23 @@
         alert(`An error occurred in ${context}. Check the console for more details.`);
     }
 
+    // Function to extract error messages from HTML response
+    function extractErrorMessages(htmlResponse) {
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlResponse, 'text/html');
+            const errorListItems = doc.querySelectorAll('#posterror .error-list li strong');
+            return Array.from(errorListItems).map(el => el.textContent);
+        } catch (error) {
+            logError('extractErrorMessages', error);
+            return [];
+        }
+    }
+
     // sendMessagesToWinners: Sends automated messages to a list of winners.
     // This function iterates over each username, sending a message, and handles potential errors with retries.
     async function sendMessagesToWinners(usernames) {
         try {
-            // Fetch and cache these elements if not already done
             if (!cachedCsrfToken || !cachedSubject || !cachedMessage) {
                 cachedCsrfToken = document.querySelector('input[name="csrf_hash"]').value;
                 cachedSubject = document.querySelector('input[name="req_subject"]').value;
@@ -43,41 +55,64 @@
             }
             let successCount = 0;
             let failCount = 0;
-    
-            // UI feedback elements
-            const progressDiv = document.createElement('div');
-            document.body.appendChild(progressDiv); // Append wherever appropriate
+            let failedUsernames = [];
+            let detailedErrors = [];
+
+            const progressLabel = document.createElement('label');
+            progressLabel.textContent = `Current messages sent: 0 out of ${usernames.length}.\n Please stay on this window so the process does not get interfered.`;
+
+            const buttonsContainer = document.querySelector('form#post .buttons');
+            if (buttonsContainer) {
+                buttonsContainer.insertAdjacentElement('afterend', progressLabel);
+            } else {
+                document.body.appendChild(progressLabel);
+            }
     
             for (const username of usernames) {
                 let attempts = 0;
-                let isSuccess = false;
+                let result;
     
-                while (!isSuccess && attempts < 3) { // Retry up to 3 times
-                    try {
-                        isSuccess = await sendMessageToWinner(username, subject, message, csrfToken);
-                        if (isSuccess) {
-                            successCount++;
-                        } else {
-                            attempts++;
-                            await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds before retrying
+                while (!result?.success && attempts < 3) {
+                    result = await sendMessageToWinner(username, cachedSubject, cachedMessage, cachedCsrfToken);
+    
+                    if (result.success) {
+                        successCount++;
+                        break;
+                    } else {
+                        if (result?.errors && result.errors.length > 0) {
+                            break;
                         }
-                    } catch (error) {
-                        console.error(`Error sending message to ${username}:`, error);
                         attempts++;
-                        await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds before retrying
+                        await new Promise(resolve => setTimeout(resolve, 30000));
                     }
                 }
     
-                if (!isSuccess) failCount++;
+                if (!result?.success) {
+                    failCount++;
+                    failedUsernames.push(username);
+                    if (result?.errors) {
+                        detailedErrors.push({ username, errorMessages: result.errors });
+                    }
+                }
     
-                // Update UI with progress
-                progressDiv.textContent = `Sending messages... (${successCount + failCount}/${usernames.length})`;
-    
+                progressLabel.textContent = `Current messages sent: ${successCount + failCount} out of ${usernames.length}.\n Please stay on this window so the process does not get interfered.`;
+
                 await new Promise(resolve => setTimeout(resolve, CONFIG.messagingDelay));
             }
     
-            alert(`${successCount}/${usernames.length} messages sent successfully. ${failCount} failed.`);
-            document.body.removeChild(progressDiv); // Remove the progress element
+            let alertMessage = `${successCount}/${usernames.length} messages sent successfully.`;
+            if (failedUsernames.length > 0) {
+                alertMessage += `\nFailed to send messages to: ${failedUsernames.join(', ')}`;
+                if (detailedErrors.length > 0) {
+                    const errorDetails = detailedErrors.map(e => `${e.username}: ${e.errorMessages.join(', ')}`).join('\n');
+                    alertMessage += `\nError details:\n${errorDetails}`;
+                }
+            }
+
+            if (progressLabel.parentNode) {
+                progressLabel.parentNode.removeChild(progressLabel);
+            }
+            alert(alertMessage);
         } catch (error) {
             logError('sendMessagesToWinners', error);
         }
@@ -94,8 +129,8 @@
                 'req_message': message,
                 'submit': 'Submit'
             });
-
-            const response = await fetchWithTimeout(CONFIG.messagingURL, {
+    
+            const response = await fetch(CONFIG.messagingURL, {
                 method: 'POST',
                 body: params,
                 credentials: 'include',
@@ -103,11 +138,18 @@
                     'Content-Type': 'application/x-www-form-urlencoded'
                 }
             });
+    
+            const responseBody = await response.text();
 
-            return response.ok;
+            if (responseBody.includes('id="posterror"')) {
+                const errors = extractErrorMessages(responseBody);
+                return { success: false, errors };
+            } else {
+                return { success: true };
+            }
         } catch (error) {
-            logError('sendMessageToWinner', error);
-            return false;
+            console.error(`Error in sendMessageToWinner for ${winnerUsername}:`, error);
+            return { success: false, errors: [error.message] };
         }
     }
 
@@ -272,7 +314,6 @@
             bulkInput.type = 'text';
             bulkInput.className = 'longinput';
             bulkInput.name = 'usernames';
-            bulkInput.placeholder = 'Enter usernames separated by commas';
     
             bulkLabel.appendChild(bulkInput);
             txtAreaDiv.appendChild(bulkLabel);
